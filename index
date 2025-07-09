@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>ミスター銀行</title>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f0f0f0; padding: 20px; }
+    .container { background: white; padding: 20px; max-width: 600px; margin: auto; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    .log { background: #eee; padding: 10px; margin-top: 10px; max-height: 100px; overflow-y: auto; font-size: 0.9em; }
+    button, input { padding: 10px; margin: 5px 5px 5px 0; }
+    input { width: calc(100% - 20px); box-sizing: border-box; }
+    .button-row button { display: inline-block; width: 90px; margin: 5px 5px 5px 0; }
+    #reader { width: 100%; margin-top: 10px; }
+    .section { display: none; }
+    .visible { display: block; }
+    #qrcodeCanvas { margin-top: 10px; }
+    .qr-list canvas { margin: 5px; }
+    #passwordOverlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+    #passwordBox {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div id="passwordOverlay">
+    <div id="passwordBox">
+      <h3>🔒 パスワードを入力</h3>
+      <input type="password" id="passwordInput" placeholder="パスワード">
+      <button onclick="checkPassword()">ログイン</button>
+    </div>
+  </div>
+
+  <div class="container" style="display:none" id="appContainer">
+    <div id="menuSection" class="section visible">
+      <h2>ミスター銀行</h2>
+      <button onclick="showSection('loginSection')">📥 ログイン</button>
+      <button onclick="showSection('createSection')">🆕 新規口座作成</button>
+      <button onclick="downloadData()">⬇️ データダウンロード</button>
+      <input type="file" onchange="uploadData(event)" accept=".json">
+      <button onclick="showAllQRCodes()">📄 全QRコード一覧</button>
+    </div>
+
+    <div id="loginSection" class="section">
+      <h3>📥 ログイン</h3>
+      <input type="text" id="userIdInput" placeholder="IDを入力またはQR">
+      <button onclick="login()">ログイン</button>
+      <div id="reader"></div>
+      <button onclick="startScanner()">📷 QRコード読み取り開始</button>
+      <button onclick="showSection('menuSection'); clearLoginInput();">🔙 戻る</button>
+    </div>
+
+    <div id="createSection" class="section">
+      <h3>🆕 新規口座作成</h3>
+      <input type="text" id="newIdInput" placeholder="新しいID">
+      <input type="text" id="newNameInput" placeholder="名前">
+      <button onclick="createAccount()">口座作成</button>
+      <button onclick="showSection('menuSection')">🔙 戻る</button>
+    </div>
+
+    <div id="accountSection" class="section">
+      <h3>ようこそ <span id="userNameDisplay"></span> さん</h3>
+      <p>残高：<span id="balance">0</span> ミスター</p>
+
+      <div class="button-row">
+        <button onclick="deposit(100)">+100</button>
+        <button onclick="deposit(1000)">+1000</button>
+        <button onclick="deposit(10000)">+10000</button>
+        <button onclick="deposit(50000)">+50000</button>
+        <button onclick="deposit(100000)">+100000</button>
+      </div>
+      <div class="button-row">
+        <button onclick="withdraw(100)">-100</button>
+        <button onclick="withdraw(1000)">-1000</button>
+        <button onclick="withdraw(10000)">-10000</button>
+        <button onclick="withdraw(50000)">-50000</button>
+        <button onclick="withdraw(100000)">-100000</button>
+      </div>
+
+      <button onclick="generateQRCode()">🔳 QRコード表示</button>
+      <canvas id="qrcodeCanvas"></canvas>
+
+      <h4>取引履歴</h4>
+      <div class="log" id="log"></div>
+
+      <button onclick="logout()">🔚 ログアウト</button>
+    </div>
+
+    <div id="qrListSection" class="section">
+      <h3>📄 全QRコード一覧</h3>
+      <div id="qrList" class="qr-list"></div>
+      <button onclick="showSection('menuSection')">🔙 戻る</button>
+    </div>
+  </div>
+
+  <script>
+    const PASSWORD = "1234";
+    function checkPassword() {
+      const input = document.getElementById("passwordInput").value;
+      if (input === PASSWORD) {
+        document.getElementById("passwordOverlay").style.display = "none";
+        document.getElementById("appContainer").style.display = "block";
+      } else {
+        alert("パスワードが間違っています。");
+      }
+    }
+
+    let currentUserId = null;
+    let userData = {};
+
+    function showSection(id) {
+      document.querySelectorAll(".section").forEach(s => s.classList.remove("visible"));
+      document.getElementById(id).classList.add("visible");
+    }
+
+    function clearLoginInput() {
+      document.getElementById("userIdInput").value = "";
+    }
+
+    function loadUserData() {
+      const data = localStorage.getItem("bankData");
+      userData = data ? JSON.parse(data) : {};
+    }
+
+    function saveUserData() {
+      localStorage.setItem("bankData", JSON.stringify(userData));
+    }
+
+    function login(id = null) {
+      const userId = id || document.getElementById("userIdInput").value.trim();
+      if (!userId) return alert("IDを入力してください。");
+      loadUserData();
+      if (!userData[userId]) return alert("そのIDは登録されていません。");
+      currentUserId = userId;
+      document.getElementById("userNameDisplay").textContent = userData[userId].name;
+      updateDisplay();
+      showSection("accountSection");
+    }
+
+    function logout() {
+      currentUserId = null;
+      showSection("menuSection");
+      clearLoginInput();
+    }
+
+    function createAccount() {
+      const id = document.getElementById("newIdInput").value.trim();
+      const name = document.getElementById("newNameInput").value.trim();
+      if (!id || !name) return alert("IDと名前を入力してください。");
+      loadUserData();
+      if (userData[id]) return alert("このIDはすでに使われています。");
+      if (Object.values(userData).some(u => u.name === name)) return alert("この名前はすでに使われています。");
+      userData[id] = { name, balance: 0, logs: [] };
+      saveUserData();
+      login(id);
+    }
+
+    function updateDisplay() {
+      const data = userData[currentUserId];
+      document.getElementById("balance").textContent = data.balance;
+      document.getElementById("log").innerHTML = data.logs.map(log => `<div>${log}</div>`).reverse().join("");
+    }
+
+    function deposit(amount) {
+      const user = userData[currentUserId];
+      user.balance += amount;
+      user.logs.push(`[${getTime()}] +${amount} ミスター 入金`);
+      saveUserData();
+      updateDisplay();
+    }
+
+    function withdraw(amount) {
+      const user = userData[currentUserId];
+      if (user.balance >= amount) {
+        user.balance -= amount;
+        user.logs.push(`[${getTime()}] -${amount} ミスター 出金`);
+      } else {
+        user.logs.push(`[${getTime()}] 出金失敗：残高不足 (${amount})`);
+      }
+      saveUserData();
+      updateDisplay();
+    }
+
+    function getTime() {
+      return new Date().toLocaleTimeString();
+    }
+
+    function startScanner() {
+      const reader = new Html5Qrcode("reader");
+      reader.start({ facingMode: "environment" }, { fps: 10, qrbox: 200 }, (decodedText) => {
+        reader.stop();
+        login(decodedText.trim());
+      });
+    }
+
+    function generateQRCode() {
+      const canvas = document.getElementById("qrcodeCanvas");
+      QRCode.toCanvas(canvas, currentUserId, function (error) {
+        if (error) console.error(error);
+      });
+    }
+
+    function showAllQRCodes() {
+      loadUserData();
+      const list = document.getElementById("qrList");
+      list.innerHTML = "";
+      Object.entries(userData).forEach(([id, info]) => {
+        const div = document.createElement("div");
+        const label = document.createElement("div");
+        label.textContent = `${info.name} (${id})`;
+        const canvas = document.createElement("canvas");
+        QRCode.toCanvas(canvas, id);
+        div.appendChild(label);
+        div.appendChild(canvas);
+        list.appendChild(div);
+      });
+      showSection("qrListSection");
+    }
+
+    function downloadData() {
+      const blob = new Blob([JSON.stringify(userData, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "mr_bank_data.json";
+      a.click();
+    }
+
+    function uploadData(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        try {
+          const data = JSON.parse(e.target.result);
+          userData = data;
+          saveUserData();
+          alert("データを読み込みました。");
+        } catch (e) {
+          alert("読み込み失敗：" + e);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    loadUserData();
+  </script>
+</body>
+</html>
