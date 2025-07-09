@@ -37,7 +37,7 @@
 <body>
   <div id="passwordOverlay">
     <div id="passwordBox">
-      <h3>パスワードを入力</h3>
+      <h3>🔒 パスワードを入力</h3>
       <input type="password" id="passwordInput" placeholder="パスワード">
       <button onclick="checkPassword()">ログイン</button>
     </div>
@@ -46,20 +46,20 @@
   <div class="container" style="display:none" id="appContainer">
     <div id="menuSection" class="section visible">
       <h2>ミスター銀行</h2>
-      <button onclick="showSection('loginSection')">ログイン</button>
+      <button onclick="showSection('loginSection')">📥 ログイン</button>
       <button onclick="showSection('createSection')">🆕 新規口座作成</button>
-      <button onclick="downloadData()">データダウンロード</button>
+      <button onclick="downloadData()">⬇️ データダウンロード</button>
       <input type="file" onchange="uploadData(event)" accept=".json">
-      <button onclick="showAllQRCodes()"> 全QRコード一覧</button>
+      <button onclick="showAllQRCodes()">📄 全QRコード一覧</button>
     </div>
 
     <div id="loginSection" class="section">
-      <h3>ログイン</h3>
+      <h3>📥 ログイン</h3>
       <input type="text" id="userIdInput" placeholder="IDを入力またはQR">
       <button onclick="login()">ログイン</button>
       <div id="reader"></div>
-      <button onclick="startScanner()">QRコード読み取り開始</button>
-      <button onclick="showSection('menuSection'); clearLoginInput();">戻る</button>
+      <button onclick="startScanner()">📷 QRコード読み取り開始</button>
+      <button onclick="showSection('menuSection'); clearLoginInput();">🔙 戻る</button>
     </div>
 
     <div id="createSection" class="section">
@@ -67,7 +67,7 @@
       <input type="text" id="newIdInput" placeholder="新しいID">
       <input type="text" id="newNameInput" placeholder="名前">
       <button onclick="createAccount()">口座作成</button>
-      <button onclick="showSection('menuSection')">戻る</button>
+      <button onclick="showSection('menuSection')">🔙 戻る</button>
     </div>
 
     <div id="accountSection" class="section">
@@ -89,19 +89,19 @@
         <button onclick="withdraw(100000)">-100000</button>
       </div>
 
-      <button onclick="generateQRCode()">QRコード表示</button>
+      <button onclick="generateQRCode()">🔳 QRコード表示</button>
       <canvas id="qrcodeCanvas"></canvas>
 
       <h4>取引履歴</h4>
       <div class="log" id="log"></div>
 
-      <button onclick="logout()">ログアウト</button>
+      <button onclick="logout()">🔚 ログアウト</button>
     </div>
 
     <div id="qrListSection" class="section">
-      <h3>全QRコード一覧</h3>
+      <h3>📄 全QRコード一覧</h3>
       <div id="qrList" class="qr-list"></div>
-      <button onclick="showSection('menuSection')">戻る</button>
+      <button onclick="showSection('menuSection')">🔙 戻る</button>
     </div>
   </div>
 
